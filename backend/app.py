@@ -1,70 +1,68 @@
-import joblib
-import pandas as pd
-from flask import Flask, request, jsonify
+
+# Import necessary libraries
+import numpy as np
+import joblib  # For loading the serialized model
+import pandas as pd  # For data manipulation
+from flask import Flask, request, jsonify  # For creating the Flask API
 
 # Initialize Flask app with a name
-superkart_predictor_api = Flask("Customer Superkart Predictor")
+superkart_api = Flask("SuperKart")
 
-# Load the trained superkart prediction model
-model = joblib.load("superkart_prediction_model_v1_0.joblib")
+# Load the trained model
+model = joblib.load("superkart_model.joblib")
 
 # Define a route for the home page
-@superkart_predictor_api.get('/')
+@superkart_api.get('/')
 def home():
-    return "Welcome to the Customer Churn Prediction API!"
+    return "Welcome to the SuperKart System"
 
-# Define an endpoint to predict churn for a single customer
-@superkart_predictor_api.post('/v1/customer')
-def predict_churn():
+# Define an endpoint to predict sales for a single product
+@superkart_api.post('/v1/predict')
+def predict_sales():
     # Get JSON data from the request
-    customer_data = request.get_json()
+    data = request.get_json()
 
-    # Extract relevant customer features from the input data
+    # Extract relevant features from the input data
     sample = {
-        'CreditScore': customer_data['CreditScore'],
-        'Geography': customer_data['Geography'],
-        'Age': customer_data['Age'],
-        'Tenure': customer_data['Tenure'],
-        'Balance': customer_data['Balance'],
-        'NumOfProducts': customer_data['NumOfProducts'],
-        'HasCrCard': customer_data['HasCrCard'],
-        'IsActiveMember': customer_data['IsActiveMember'],
-        'EstimatedSalary': customer_data['EstimatedSalary']
-    }
+    'Product_Weight': data['Product_Weight'],
+    'Product_Sugar_Content': data['Product_Sugar_Content'],
+    'Product_Allocated_Area': data['Product_Allocated_Area'],
+    'Product_MRP': data['Product_MRP'],
+    'Store_Size': data['Store_Size'],
+    'Store_Location_City_Type': data['Store_Location_City_Type'],
+    'Store_Type': data['Store_Type'],
+    'Product_Id_char': data['Product_Id_char'],
+    'Store_Age_Years': data['Store_Age_Years'],
+    'Product_Type_Category': data['Product_Type_Category']
+}
 
     # Convert the extracted data into a DataFrame
     input_data = pd.DataFrame([sample])
 
-    # Make a churn prediction using the trained model
+    # Make a prediction using the trained model
     prediction = model.predict(input_data).tolist()[0]
 
-    # Map prediction result to a human-readable label
-    prediction_label = "churn" if prediction == 1 else "not churn"
-
     # Return the prediction as a JSON response
-    return jsonify({'Prediction': prediction_label})
+    return jsonify({'Sales': prediction})
 
-# Define an endpoint to predict churn for a batch of customers
-@superkart_predictor_api.post('/v1/customerbatch')
-def predict_churn_batch():
+# Define an endpoint to predict sales for a batch of products
+@superkart_api.post('/v1/predictbatch')
+def predict_sales_batch():
     # Get the uploaded CSV file from the request
     file = request.files['file']
 
     # Read the file into a DataFrame
     input_data = pd.read_csv(file)
 
-    # Make predictions for the batch data and convert raw predictions into a readable format
-    predictions = [
-        'Churn' if x == 1
-        else "Not Churn"
-        for x in model.predict(input_data.drop("CustomerId",axis=1)).tolist()
-    ]
+    # Make predictions for the batch data
+    predictions = model.predict(input_data).tolist()
 
-    cust_id_list = input_data.CustomerId.values.tolist()
-    output_dict = dict(zip(cust_id_list, predictions))
+    # Create an output dictionary mapping row index to predicted sales
+    output_dict = {str(i): round(pred, 2) for i, pred in enumerate(predictions)}
 
     return output_dict
 
+
 # Run the Flask app in debug mode
 if __name__ == '__main__':
-    app.run(debug=True)
+    superkart_api.run(debug=True)
